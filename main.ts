@@ -91,6 +91,11 @@ function joinFile(fl: FileLines): string {
   return fl.lines.length === 0 ? '' : fl.lines.join(fl.br) + (fl.finalBr ? fl.br : '');
 }
 
+/** A file an edit creates: LF breaks, ending with one unless the format says otherwise (section 3). */
+function createdText(texts: string[], finalBr = true): string {
+  return texts.length === 0 ? '' : texts.join('\n') + (finalBr ? '\n' : '');
+}
+
 // ---------------------------------------------------------------------------
 // Matching lines (SPEC.md section 5)
 // ---------------------------------------------------------------------------
@@ -302,9 +307,8 @@ function sectionEdit(s: Section): Edit {
       if (!safe(p)) throw new Fail('unsafe', p);
       if (tree.get(p) !== null) throw new Fail('exists', p);
       const plus = s.hunks.flatMap((h) => h.items.filter((it) => it.type === '+'));
-      const texts = plus.map((it) => it.text);
       const last = plus[plus.length - 1];
-      const text = texts.length === 0 ? '' : texts.join('\n') + (last !== undefined && last.bsAfter ? '' : '\n');
+      const text = createdText(plus.map((it) => it.text), !(last !== undefined && last.bsAfter));
       tree.now.set(p, text);
       return;
     }
@@ -420,7 +424,7 @@ function searchReplaceEdits(lines: string[]): Edit[] {
       if (!safe(p)) throw new Fail('unsafe', p);
       if (oldLines.length === 0) {
         if (tree.get(p) !== null) throw new Fail('exists', p);
-        tree.now.set(p, newLines.length === 0 ? '' : `${newLines.join('\n')}\n`);
+        tree.now.set(p, createdText(newLines));
         return;
       }
       const src = tree.get(p);
@@ -555,7 +559,7 @@ function v4aEdit(sec: VSection): Edit {
     if (!safe(p)) throw new Fail('unsafe', p);
     if (sec.kind === 'add') {
       if (tree.get(p) !== null) throw new Fail('exists', p);
-      tree.now.set(p, sec.addLines.length === 0 ? '' : `${sec.addLines.join('\n')}\n`);
+      tree.now.set(p, createdText(sec.addLines));
       return;
     }
     if (sec.moveTo !== null && !safe(sec.moveTo)) throw new Fail('unsafe', sec.moveTo);
